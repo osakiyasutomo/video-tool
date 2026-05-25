@@ -1,11 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import OpenAI from 'openai';
 
-const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-
 export async function POST(req: NextRequest) {
-  const { script } = await req.json();
+  const { script, apiKey } = await req.json();
   if (!script?.trim()) return NextResponse.json({ error: '台本が空です' }, { status: 400 });
+
+  const key = apiKey || process.env.OPENAI_API_KEY;
+  if (!key) return NextResponse.json({ error: 'OpenAI APIキーが設定されていません。ページ上部の「APIキー設定」から入力してください。' }, { status: 400 });
+
+  const client = new OpenAI({ apiKey: key });
 
   const response = await client.chat.completions.create({
     model: 'gpt-4o',

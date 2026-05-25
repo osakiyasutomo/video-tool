@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import { SceneConfig, VideoProps, DEFAULT_VIDEO_PROPS } from '@/types/video';
 
@@ -17,8 +17,22 @@ export default function Home() {
   const [rendering, setRendering] = useState(false);
   const [renderUrl, setRenderUrl] = useState('');
   const [error, setError] = useState('');
+  const [apiKey, setApiKey] = useState('');
+  const [showApiKey, setShowApiKey] = useState(false);
+  const [apiKeyOpen, setApiKeyOpen] = useState(false);
   const bgmRef = useRef<HTMLInputElement>(null);
   const logoRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const saved = localStorage.getItem('openai_api_key');
+    if (saved) setApiKey(saved);
+  }, []);
+
+  function saveApiKey(key: string) {
+    setApiKey(key);
+    if (key) localStorage.setItem('openai_api_key', key);
+    else localStorage.removeItem('openai_api_key');
+  }
 
   const videoProps: VideoProps = {
     ...DEFAULT_VIDEO_PROPS,
@@ -37,7 +51,7 @@ export default function Home() {
       const res = await fetch('/api/parse', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ script }),
+        body: JSON.stringify({ script, apiKey: apiKey || undefined }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? '解析失敗');
@@ -87,26 +101,66 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-white border-b border-gray-200 px-6 py-4">
-        <div className="max-w-5xl mx-auto flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-bold text-gray-900">動画作成ツール</h1>
-            <p className="text-sm text-gray-500">台本を貼り付けて商品PR動画を自動生成</p>
+        <div className="max-w-5xl mx-auto">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-xl font-bold text-gray-900">動画作成ツール</h1>
+              <p className="text-sm text-gray-500">台本を貼り付けて商品PR動画を自動生成</p>
+            </div>
+            <div className="flex items-center gap-4">
+              <button
+                onClick={() => setApiKeyOpen(v => !v)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm border transition-colors ${apiKey ? 'border-green-300 bg-green-50 text-green-700' : 'border-gray-200 bg-gray-50 text-gray-600 hover:border-gray-300'}`}
+              >
+                <span>{apiKey ? '🔑 APIキー設定済み' : '🔑 APIキー未設定'}</span>
+                <span className="text-xs">{apiKeyOpen ? '▲' : '▼'}</span>
+              </button>
+              <div className="flex items-center gap-2 text-sm">
+                {([1, 2, 3] as Step[]).map(s => (
+                  <React.Fragment key={s}>
+                    <button
+                      onClick={() => s < step && setStep(s)}
+                      className={`w-8 h-8 rounded-full font-bold transition-colors ${
+                        step === s ? 'bg-black text-white' :
+                        s < step ? 'bg-gray-300 text-gray-700 hover:bg-gray-400 cursor-pointer' :
+                        'bg-gray-100 text-gray-400 cursor-default'
+                      }`}
+                    >{s}</button>
+                    {s < 3 && <div className={`w-8 h-px ${s < step ? 'bg-gray-400' : 'bg-gray-200'}`} />}
+                  </React.Fragment>
+                ))}
+              </div>
+            </div>
           </div>
-          <div className="flex items-center gap-2 text-sm">
-            {([1, 2, 3] as Step[]).map(s => (
-              <React.Fragment key={s}>
+
+          {apiKeyOpen && (
+            <div className="mt-3 p-4 bg-gray-50 border border-gray-200 rounded-xl">
+              <p className="text-xs text-gray-500 mb-2">OpenAI APIキーを入力してください。ブラウザのローカルストレージに保存されます（サーバーには保存されません）。</p>
+              <div className="flex gap-2">
+                <input
+                  type={showApiKey ? 'text' : 'password'}
+                  value={apiKey}
+                  onChange={e => saveApiKey(e.target.value)}
+                  placeholder="sk-proj-..."
+                  className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg font-mono focus:outline-none focus:ring-2 focus:ring-black"
+                />
                 <button
-                  onClick={() => s < step && setStep(s)}
-                  className={`w-8 h-8 rounded-full font-bold transition-colors ${
-                    step === s ? 'bg-black text-white' :
-                    s < step ? 'bg-gray-300 text-gray-700 hover:bg-gray-400 cursor-pointer' :
-                    'bg-gray-100 text-gray-400 cursor-default'
-                  }`}
-                >{s}</button>
-                {s < 3 && <div className={`w-8 h-px ${s < step ? 'bg-gray-400' : 'bg-gray-200'}`} />}
-              </React.Fragment>
-            ))}
-          </div>
+                  onClick={() => setShowApiKey(v => !v)}
+                  className="px-3 py-2 text-sm border border-gray-200 rounded-lg hover:border-gray-400 transition-colors"
+                >
+                  {showApiKey ? '隠す' : '表示'}
+                </button>
+                {apiKey && (
+                  <button
+                    onClick={() => saveApiKey('')}
+                    className="px-3 py-2 text-sm border border-red-200 text-red-600 rounded-lg hover:bg-red-50 transition-colors"
+                  >
+                    削除
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       </header>
 
